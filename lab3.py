@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 from data_preprocessing import split_data
 from gauss import partial_pivot_gauss
 
-gauss = partial_pivot_gauss
+gauss = np.linalg.solve
 
 d = 20
-lambd = 0.001
+lambd = 0.01
+nb_iter = 8000
+products = 'example_data'
 np.set_printoptions(linewidth=np.inf)
 dataframe = pd.read_csv('example_data.csv', sep=';')
 dataframe = dataframe[['id_user', 'id_product', 'rating']]
@@ -36,9 +38,9 @@ print(training_ratings)
 print("Test matrix: ")
 print(test_ratings)
 
-# %%
-all_losses = []
-for n in range(8000):
+training_losses = []
+test_losses = []
+for n in range(nb_iter):
     for u in range(len(rows)):
         I_u = np.argwhere(training_ratings[u] != 0).flatten()
         P_I_u = P[:, I_u]
@@ -65,26 +67,36 @@ for n in range(8000):
         P_p = gauss(B_p, W_p)
         P[:, p] = P_p
 
-    # Poprawka
-    f = 0
+    training_loss = 0
+    test_loss = 0
     R = np.dot(np.transpose(U), P)
     for i in range(training_ratings.shape[0]):
         for j in range(training_ratings.shape[1]):
             if training_ratings[i, j] != 0:
-                f += (training_ratings[i, j] - R[i, j])**2 + lambd*(np.sqrt(np.sum(U[:, i]**2)) + np.sqrt(np.sum(P[:, j]**2)))
+                training_loss += (training_ratings[i, j] - R[i, j])**2 + lambd*(np.sqrt(np.sum(U[:, i]**2)) + np.sqrt(np.sum(P[:, j]**2)))
+                # nb_train += 1            
+            if test_ratings[i, j] != 0:
+                test_loss += (test_ratings[i, j] - R[i, j])**2
+                nb_test += 1
+                # err += np.abs(test_ratings[i, j] - ratings_predicted[i,j])
+    # training_loss = training_loss/nb_train
+    test_loss = test_loss/nb_test
+    print(f"Iter: {n} train loss: {training_loss} test loss: {test_loss}")
+    training_losses.append(training_loss)
+    test_losses.append(test_loss)
 
-    loss = f
-    # to bylo źle
-    # f1 = np.sum((ratings - np.dot(np.transpose(U), P))**2)
-    # f2 = np.sum(np.sqrt(np.sum(U**2, axis=1)))
-    # f3 = np.sum(np.sqrt(np.sum(P**2, axis=1)))
-    # loss = f1 + lambd*(f2+f3)
-    print(f"Iter: {n} Loss: {loss}")
-    all_losses.append(loss)
+print(f"Lambda: {lambd}, number of iterations: {nb_iter}")
+print(f"Training loss: {training_loss}")
+print(f"Test loss: {test_loss}")
 
-plt.plot(all_losses)
-plt.xlabel('Iteration')
-plt.ylabel('Loss')
+fig, axs = plt.subplots(nrows=1, ncols=2)
+axs[0].plot(training_losses, label="train")
+axs[0].set_ylabel("Loss function")
+axs[0].set_xlabel("Iteration")
+axs[1].plot(test_losses, label="test", color="orange")
+axs[1].set_xlabel("Iteration")
+plt.title(f"Loss functions lambda: {lambd}, d: {d}, iterations: {nb_iter}")
+plt.legend()
 plt.show()
 
 # %%
@@ -97,7 +109,7 @@ print(test_ratings)
 print("Train matrix")
 print(training_ratings)
 
-# %%
+
 ratings_predicted = np.rint(R).astype(np.int32)
 err = 0
 
