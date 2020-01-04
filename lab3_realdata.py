@@ -4,43 +4,52 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from data_preprocessing import split_data
 from gauss import partial_pivot_gauss
+from timeit import default_timer as timer
 
-gauss = partial_pivot_gauss
-d = 20
+import utils
+
+# Initial values
+gauss = np.linalg.solve
+d = 10
 lambd = 0.001
+nb_iter = 100
+nb_products = 200
+verbose = 0
 
+# For printing whole array
 np.set_printoptions(linewidth=np.inf)
-dataframe = pd.read_csv('ratings_100.csv', sep=',')
+
+# Reading ratings 
+dataframe = pd.read_csv(f'ratings_{nb_products}.csv', sep=',')
 dataframe = dataframe[['user_id', 'product_id', 'user_rating']]
 data = dataframe.values
 
+# Creating pivot table
 rows, row_pos = np.unique(data[:, 0], return_inverse=True)
 cols, col_pos = np.unique(data[:, 1], return_inverse=True)
-
 pivot_table = np.zeros((len(rows), len(cols)), dtype=data.dtype)
 pivot_table[row_pos, col_pos] = data[:, 2]
 ratings = pivot_table
-print(ratings)
-print(ratings.shape)
+
 print(f"Number of ratings: {len(np.argwhere(ratings != 0))}")
+print(f"Number of users: {len(rows)}")
+print(f"Number of products: {len(cols)}")
+nb_products=len(cols)
 
 # Initialize U (users coeffs), P (products coeffs) matricies
+np.random.seed(42)
 U = 5*np.random.rand(d, len(rows))
 P = 5*np.random.rand(d, len(cols))
 
+# Spliting data into test and train set
+training_ratings, test_ratings, nb_tests = split_data(ratings, spliting_ratio=0.8, seed=42)
 
-print(f"Rating matrix:")
-print(ratings)
-training_ratings, test_ratings, nb_tests = split_data(ratings, spliting_ratio=0.8)
-print("TRAIN")
-print(training_ratings)
-print("TEST")
-print(test_ratings)
-print(training_ratings.shape)
-print(ratings.shape)
+training_losses = []
+test_losses = []
+start_als = timer()
 
-all_losses = []
-for n in range(10000):
+for n in range(nb_iter):
+    # ALS algorithm
     for u in range(len(rows)):
         I_u = np.argwhere(training_ratings[u] != 0).flatten()
         P_I_u = P[:, I_u]
@@ -67,38 +76,63 @@ for n in range(10000):
         P_p = gauss(B_p, W_p)
         P[:, p] = P_p
 
-    # Poprawka
-    f = 0
+    training_loss = 0
+    test_loss = 0
+    nb_test_ratings = 1
     R = np.dot(np.transpose(U), P)
     for i in range(training_ratings.shape[0]):
         for j in range(training_ratings.shape[1]):
             if training_ratings[i, j] != 0:
-                f += (training_ratings[i, j] - R[i, j])**2 + lambd*(np.sqrt(np.sum(U[:, i]**2)) + np.sqrt(np.sum(P[:, j]**2)))
+                training_loss += (training_ratings[i, j] - R[i, j])**2 + lambd*(np.sqrt(np.sum(U[:, i]**2)) + np.sqrt(np.sum(P[:, j]**2)))            
+            if test_ratings[i, j] != 0:
+                test_loss += (test_ratings[i, j] - R[i, j])**2
+                nb_test_ratings += 1
 
-    loss = f
-    # to bylo źle
-    # f1 = np.sum((ratings - np.dot(np.transpose(U), P))**2)
-    # f2 = np.sum(np.sqrt(np.sum(U**2, axis=1)))
-    # f3 = np.sum(np.sqrt(np.sum(P**2, axis=1)))
-    # loss = f1 + lambd*(f2+f3)
-    print(f"Iter: {n} Loss: {loss}")
-    all_losses.append(loss)
+    test_loss = test_loss/nb_test_ratings
+    # Save best matrix for test set
+    if n == 0:
+        R_best = R
+        best_iter = n
+        best_test_loss = test_loss
+    elif test_loss <= test_losses[n-1]:
+        R_best = R
+        best_iter = n
+        best_test_loss = test_loss
 
-plt.plot(all_losses)
-plt.xlabel('Iteration')
-plt.ylabel('Loss')
-plt.show()
+    if verbose > 0:
+        print(f"Iter: {n} train loss: {training_loss}")
 
+    training_losses.append(training_loss)
+    test_losses.append(test_loss)
 
-
-# %%
+R = R_best
+stop_als = timer()
+print(f"Lambda: {lambd}, d: {d}, products: {nb_products}, iterations: {nb_iter}")
+print(f"Training loss: {training_loss}")
+print(f"Test MSE loss: {best_test_loss}")
+print(f"Time needed to compute: {stop_als-start_als}")
 ratings_predicted = np.rint(R).astype(np.int32)
-err = 0
+ratings_predicted = utils.normalize_data(ratings_predicted)
 
+ground_truth_ratings = ""
+predicted_ratings_string = ""
+avg_err = 0
 for i in range(test_ratings.shape[0]):
-    for j in range(test_ratings.shape[1]):
-        if test_ratings[i, j] != 0:
-            err += np.abs(test_ratings[i, j] - ratings_predicted[i,j])
-# err = err/nb_tests
-err = err/len(np.argwhere(test_ratings != 0))
-print(f"Average error of prediction: {err}")
+        for j in range(test_ratings.shape[1]):
+            if test_ratings[i, j] != 0:
+                avg_err += np.abs(test_ratings[i, j] - ratings_predicted[i,j])
+                ground_truth_ratings += f"{test_ratings[i, j]}, "
+                predicted_ratings_string += f"{ratings_predicted[i,j]}, "
+avg_err = avg_err/len(np.argwhere(test_ratings != 0))
+
+print(f"Average error per rating: {avg_err}")
+print(f"Test ratings: {ground_truth_ratings}")
+print(f"Predicted ratings: {predicted_ratings_string}")
+print()
+print("All predicted ratings")
+print(ratings_predicted)
+
+if verbose > 1:
+    utils.plot_train_test_curves(training_losses, test_losses, nb_products, lambd, d, nb_iter)
+else:
+    utils.plot_train_curve(training_losses, nb_products, lambd, d, nb_iter)
