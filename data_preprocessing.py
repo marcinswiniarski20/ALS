@@ -24,9 +24,12 @@ def extract_product_from_record(record):
 def extract_data_from_record(record, file_to_write=None):
     product_id = extract_product_from_record(record)
     ratings = re.findall(r"cutomer:\s*(.*?)  votes", record)
+    category = re.findall(r"group:\s(.*?)\n", record)
     users_ratings = []
     if ratings is None:
         return
+    if len(category) > 0:
+        category = category[0]
     for rating in ratings:
         user_id = rating.split('  ')[0].replace(' ', '')
         user_rate = rating.split(': ')[1].replace(' ', '')
@@ -35,13 +38,13 @@ def extract_data_from_record(record, file_to_write=None):
     if file_to_write is not None:
         with open(file_to_write, "a+") as file:
             for user_rating in users_ratings:
-                file.write(f"{user_rating[0]},{product_id},{user_rating[1]}\n")
+                file.write(f"{user_rating[0]},{product_id},{user_rating[1]},{category}\n")
 
     return product_id, users_ratings
 
 def create_csv(file_path):
     with open(file_path, "w") as file:
-        file.write("user_id,product_id,user_rating\n")
+        file.write("user_id,product_id,user_rating,category\n")
 
 def split_data(ratings, spliting_ratio=0.8, seed=None):
     print(f"Diving data into training and test set with splitiing ratio: {spliting_ratio}")
@@ -72,7 +75,7 @@ def split_data(ratings, spliting_ratio=0.8, seed=None):
 
 if __name__ == "__main__":
     product_start = 0
-    product_stop = 100
+    product_stop = 10000
     nb_of_products = product_stop - product_start
     file_to_write = f"ratings_{nb_of_products}.csv"    
     start_extrating = timer()

@@ -10,18 +10,21 @@ import utils
 
 # Initial values
 gauss = np.linalg.solve
-d = 10
-lambd = 0.001
+d = 5
+lambd = 0.05
 nb_iter = 100
-nb_products = 200
-verbose = 0
+nb_products = 30
+category = "Video"
+verbose = 2
 
 # For printing whole array
 np.set_printoptions(linewidth=np.inf)
 
 # Reading ratings 
-dataframe = pd.read_csv(f'ratings_{nb_products}.csv', sep=',')
+dataframe = pd.read_csv(f'ratings_10000.csv', sep=',')
+dataframe = dataframe[dataframe['category'] == category]
 dataframe = dataframe[['user_id', 'product_id', 'user_rating']]
+dataframe = utils.extract_nb_of_products(dataframe, nb_products)
 data = dataframe.values
 
 # Creating pivot table
