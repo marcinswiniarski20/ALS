@@ -2,7 +2,7 @@ import numpy as np
 
 def partial_pivot_gauss(A, b, eps=1e-6):
     n = len(b)
-    X = np.zeros(n)
+    X = np.zeros(n, np.float64)
     for k in range(0, n-1):
         if np.abs(A[k, k]) < eps:
             for i in range(k+1, n):
@@ -36,8 +36,8 @@ def test():
                 [61, 2, 22, -12, -1, 22],
                 [-2, 17, 24, 0, 2, -6],
                 [3, 0, 14, -27, 1, -5],
-                [62, 31, -4, 5, 2, 0]], dtype=np.float32)
-    b = np.array([55, 47, 22, 3, 4, 8], dtype=np.float32)
+                [62, 31, -4, 5, 2, 0]], dtype=np.float64)
+    b = np.array([55, 47, 22, 3, 4, 8], dtype=np.float64)
 
     solution = partial_pivot_gauss(a, b)
     print(f"Partial pivot solution : {solution}")

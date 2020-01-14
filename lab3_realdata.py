@@ -30,7 +30,7 @@ data = dataframe.values
 # Creating pivot table
 rows, row_pos = np.unique(data[:, 0], return_inverse=True)
 cols, col_pos = np.unique(data[:, 1], return_inverse=True)
-pivot_table = np.zeros((len(rows), len(cols)), dtype=data.dtype)
+pivot_table = np.zeros((len(rows), len(cols)), dtype=np.float64)
 pivot_table[row_pos, col_pos] = data[:, 2]
 ratings = pivot_table
 
@@ -41,8 +41,8 @@ nb_products=len(cols)
 
 # Initialize U (users coeffs), P (products coeffs) matricies
 np.random.seed(42)
-U = 5*np.random.rand(d, len(rows))
-P = 5*np.random.rand(d, len(cols))
+U = 5*np.random.rand(d, len(rows), dtype=np.float64)
+P = 5*np.random.rand(d, len(cols), dtype=np.float64)
 
 # Spliting data into test and train set
 training_ratings, test_ratings, nb_tests = split_data(ratings, spliting_ratio=0.8, seed=42)

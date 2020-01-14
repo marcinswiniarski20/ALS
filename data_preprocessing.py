@@ -12,7 +12,7 @@ def get_records_from_file(file):
     records = data.split('\n\n')
     print(f"Time needed to split amazon data: {timer() - splitting_start}")
     
-    records = records[2:-1]
+    records = records[2:]
     return records
 
 
